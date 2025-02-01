@@ -10,7 +10,19 @@
 #include <dt-bindings/zmk/keys.h>
 
 / {
-    combos { compatible = "zmk,combos"; };
+    combos {
+        compatible = "zmk,combos";
+
+        z {
+            bindings = <&kp LEFT_PARENTHESIS>;
+            key-positions = <27 28>;
+        };
+
+        z1 {
+            bindings = <&kp RIGHT_PARENTHESIS>;
+            key-positions = <31 32>;
+        };
+    };
 
     behaviors {
         ss_hs_modmorph: ss_hs_modmorph {
