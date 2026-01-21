@@ -1,5 +1,38 @@
-on: [push, pull_request, workflow_dispatch]
+name: Build ZMK Firmware
+
+on: [push, pull_request]
 
 jobs:
   build:
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Initialize ZMK
+        run: |
+          west init -l .
+          west update
+          west zephyr-export
+
+      - name: Build Firmware
+        run: |
+          west build -s app -b nice_nano_v2 -- -DSHIELD=lily58_left -DZMK_CONFIG="$(pwd)/config"
+          cp app/build/zephyr/zmk.uf2 lily58_left.uf2
+          
+          west build -s app -b nice_nano_v2 -- -DSHIELD=lily58_right -DZMK_CONFIG="$(pwd)/config"
+          cp app/build/zephyr/zmk.uf2 lily58_right.uf2
+          
+          west build -s app -b nice_nano_v2 -- -DSHIELD=lily58 -DZMK_CONFIG="$(pwd)/config" -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+          cp app/build/zephyr/zmk.uf2 lily58_central.uf2
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware
+          path: |
+            lily58_left.uf2
+            lily58_right.uf2
+            lily58_central.uf2
