@@ -3,11 +3,26 @@ include:
     shield: lily58_left
     keymap: lily58
     file_name: lily58_left
+    settings:
+      - DZMK_CONFIG="config"
+      - DCONFIG_ZMK_SPLIT=y
+      - DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+
   - board: nice_nano_v2
     shield: lily58_right
     keymap: lily58
     file_name: lily58_right
+    settings:
+      - DZMK_CONFIG="config"
+      - DCONFIG_ZMK_SPLIT=y
+      - DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+
   - board: nice_nano_v2
     shield: lily58
     keymap: lily58
     file_name: lily58_central
+    settings:
+      - DZMK_CONFIG="config"
+      - DCONFIG_ZMK_SPLIT=y
+      - DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+      - DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2
