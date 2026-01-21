@@ -5,7 +5,19 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: zmkfirmware/zmk-build-arm:stable  # Используем официальный Docker-образ ZMK
+    container: zmkfirmware/zmk-build-arm:stable
+    strategy:
+      matrix:
+        include:
+          - shield: lily58_left
+            filename: lily58_left
+            role_central: n
+          - shield: lily58_right
+            filename: lily58_right
+            role_central: n
+          - shield: lily58
+            filename: lily58_central
+            role_central: y
     
     steps:
       - name: Checkout repository
@@ -19,37 +31,18 @@ jobs:
           west update
           west zephyr-export
 
-      - name: Build Left Half (Peripheral)
+      - name: Build ${{ matrix.filename }}
         run: |
           west build -s app -b nice_nano_v2 -- \
-            -DSHIELD=lily58_left \
+            -DSHIELD=${{ matrix.shield }} \
             -DZMK_CONFIG="$(pwd)/config" \
             -DCONFIG_ZMK_SPLIT=y \
-            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
-          mv app/build/zephyr/zmk.uf2 lily58_left.uf2
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=${{ matrix.role_central }}
+          mv app/build/zephyr/zmk.uf2 ${{ matrix.filename }}.uf2
 
-      - name: Build Right Half (Peripheral)
-        run: |
-          west build -s app -b nice_nano_v2 -- \
-            -DSHIELD=lily58_right \
-            -DZMK_CONFIG="$(pwd)/config" \
-            -DCONFIG_ZMK_SPLIT=y \
-            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
-          mv app/build/zephyr/zmk.uf2 lily58_right.uf2
-
-      - name: Build Dongle (Central)
-        run: |
-          west build -s app -b nice_nano_v2 -- \
-            -DSHIELD=lily58 \
-            -DZMK_CONFIG="$(pwd)/config" \
-            -DCONFIG_ZMK_SPLIT=y \
-            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
-          mv app/build/zephyr/zmk.uf2 lily58_central.uf2
-
-      - name: Upload Artifacts
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ github.run_id }}
-          path: |
-            lily58_*.uf2
+          name: ${{ matrix.filename }}
+          path: ${{ matrix.filename }}.uf2
           retention-days: 30
