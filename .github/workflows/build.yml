@@ -1,18 +1,16 @@
 name: Build ZMK Firmware
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build with ZMK Docker Helper
-        uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@main
-        with:
-          board: nice_nano_v2
-          shield: lily58
-          keymap: lily58
+  build-zmk:
+    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@main
+    with:
+      board: nice_nano_v2
+      shield: lily58
+      keymap: lily58
