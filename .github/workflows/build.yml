@@ -1,23 +1,16 @@
 name: Build ZMK Firmware
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Разрешает ручной запуск из интерфейса GitHub
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: zmkfirmware/zmk-build-arm:stable
-    strategy:
-      matrix:
-        include:
-          - shield: lily58_left
-            filename: lily58_left
-            role_central: n
-          - shield: lily58_right
-            filename: lily58_right
-            role_central: n
-          - shield: lily58
-            filename: lily58_central
-            role_central: y
+    container: zmkfirmware/zmk-build-arm:stable  # Официальный образ с ZMK и west
     
     steps:
       - name: Checkout repository
@@ -25,24 +18,89 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup ZMK
+      - name: Clean previous runs (optional)
         run: |
+          # Очищаем артефакты предыдущих сборок, если они есть
+          rm -f *.uf2
+
+      - name: Setup ZMK environment
+        run: |
+          # Удаляем возможные остатки от предыдущих неудачных запусков
+          rm -rf .west zmk zephyr
+          
+          # Инициализируем west из текущей директории (корня репозитория)
           west init -l .
+          
+          # Загружаем ZMK и все зависимости
           west update
+          
+          # Экспортируем переменные окружения Zephyr
           west zephyr-export
 
-      - name: Build ${{ matrix.filename }}
+      - name: Build firmware for Left Half (Peripheral)
         run: |
+          # Переходим в директорию zmk, где находится app/
+          cd zmk
+          
+          # Собираем прошивку для левой половины (периферийное устройство)
           west build -s app -b nice_nano_v2 -- \
-            -DSHIELD=${{ matrix.shield }} \
-            -DZMK_CONFIG="$(pwd)/config" \
+            -DSHIELD=lily58_left \
+            -DZMK_CONFIG="/__w/zmk-config-lily58/zmk-config-lily58/config" \
             -DCONFIG_ZMK_SPLIT=y \
-            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=${{ matrix.role_central }}
-          mv app/build/zephyr/zmk.uf2 ${{ matrix.filename }}.uf2
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n \
+            -DCONFIG_BT_CTLR_TX_PWR_PLUS_8=y
+          
+          # Копируем собранную прошивку в корень рабочего пространства
+          cp app/build/zephyr/zmk.uf2 /__w/zmk-config-lily58/zmk-config-lily58/lily58_left.uf2
 
-      - name: Upload Artifact
+      - name: Build firmware for Right Half (Peripheral)
+        run: |
+          cd zmk
+          
+          # Собираем прошивку для правой половины (периферийное устройство)
+          west build -s app -b nice_nano_v2 -- \
+            -DSHIELD=lily58_right \
+            -DZMK_CONFIG="/__w/zmk-config-lily58/zmk-config-lily58/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n \
+            -DCONFIG_BT_CTLR_TX_PWR_PLUS_8=y
+          
+          cp app/build/zephyr/zmk.uf2 /__w/zmk-config-lily58/zmk-config-lily58/lily58_right.uf2
+
+      - name: Build firmware for Dongle (Central)
+        run: |
+          cd zmk
+          
+          # Собираем прошивку для донгла (центральное устройство)
+          west build -s app -b nice_nano_v2 -- \
+            -DSHIELD=lily58 \
+            -DZMK_CONFIG="/__w/zmk-config-lily58/zmk-config-lily58/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
+            -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2 \
+            -DCONFIG_BT_MAX_CONN=3 \
+            -DCONFIG_BT_MAX_PAIRED=3 \
+            -DCONFIG_BT_CTLR_TX_PWR_PLUS_8=y
+          
+          cp app/build/zephyr/zmk.uf2 /__w/zmk-config-lily58/zmk-config-lily58/lily58_central.uf2
+
+      - name: Verify and list firmware files
+        run: |
+          echo "=== Проверка собранных прошивок ==="
+          ls -la *.uf2
+          echo ""
+          echo "=== Размеры файлов ==="
+          for f in *.uf2; do
+            size=$(stat -c%s "$f")
+            echo "$f: $size bytes ($((size/1024)) KB)"
+          done
+
+      - name: Upload firmware as artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.filename }}
-          path: ${{ matrix.filename }}.uf2
-          retention-days: 30
+          name: lily58-firmware-${{ github.run_number }}
+          path: |
+            lily58_left.uf2
+            lily58_right.uf2
+            lily58_central.uf2
+          retention-days: 90  # Хранить артефакты 90 дней
