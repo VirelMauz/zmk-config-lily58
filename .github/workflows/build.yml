@@ -5,76 +5,108 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Разрешает ручной запуск из интерфейса GitHub
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: zmkfirmware/zmk-build-arm:stable  # Официальный образ с ZMK и west
+    container: zmkfirmware/zmk-build-arm:stable
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Clean previous runs (optional)
+      - name: Debug directory structure before setup
         run: |
-          # Очищаем артефакты предыдущих сборок, если они есть
-          rm -f *.uf2
+          echo "=== Структура ДО west init ==="
+          find . -type d -name "app" 2>/dev/null || echo "Папка app не найдена"
+          echo ""
 
       - name: Setup ZMK environment
         run: |
-          # Удаляем возможные остатки от предыдущих неудачных запусков
-          rm -rf .west zmk zephyr
-          
-          # Инициализируем west из текущей директории (корня репозитория)
+          rm -rf .west
           west init -l .
-          
-          # Загружаем ZMK и все зависимости
           west update
-          
-          # Экспортируем переменные окружения Zephyr
           west zephyr-export
-
-      - name: Build firmware for Left Half (Peripheral)
-        run: |
-          # Переходим в директорию zmk, где находится app/
-          cd zmk
           
-          # Собираем прошивку для левой половины (периферийное устройство)
-          west build -s app -b nice_nano_v2 -- \
+          echo "=== Структура ПОСЛЕ west update ==="
+          find . -maxdepth 3 -type d -name "app" 2>/dev/null | head -5
+          echo ""
+          echo "=== Проверка пути к app ==="
+          if [ -d "app" ]; then
+            echo "app находится в корне: $(pwd)/app"
+          elif [ -d "zmk/app" ]; then
+            echo "app находится в: $(pwd)/zmk/app"
+          else
+            echo "Ищу app..."
+            find . -type d -name "app" 2>/dev/null | head -3
+          fi
+
+      - name: Find correct app directory
+        id: find_app
+        run: |
+          # Ищем папку app в различных возможных расположениях
+          if [ -d "app" ]; then
+            echo "APP_PATH=app" >> $GITHUB_OUTPUT
+          elif [ -d "zmk/app" ]; then
+            echo "APP_PATH=zmk/app" >> $GITHUB_OUTPUT
+          else
+            # Пытаемся найти любую папку app
+            APP_DIR=$(find . -type d -name "app" -path "*/app" 2>/dev/null | head -1)
+            if [ -n "$APP_DIR" ]; then
+              echo "APP_PATH=$APP_DIR" >> $GITHUB_OUTPUT
+            else
+              echo "APP_PATH=not_found" >> $GITHUB_OUTPUT
+            fi
+          fi
+          
+          echo "Found APP_PATH: ${{ steps.find_app.outputs.APP_PATH }}"
+
+      - name: Build Left Half (Peripheral)
+        run: |
+          # Используем найденный путь к app
+          APP_PATH="${{ steps.find_app.outputs.APP_PATH }}"
+          
+          if [ "$APP_PATH" = "not_found" ]; then
+            echo "ОШИБКА: Папка app не найдена!"
+            exit 1
+          fi
+          
+          echo "Сборка левой половины с APP_PATH=$APP_PATH"
+          west build -s "$APP_PATH" -b nice_nano_v2 -- \
             -DSHIELD=lily58_left \
-            -DZMK_CONFIG="/__w/zmk-config-lily58/zmk-config-lily58/config" \
+            -DZMK_CONFIG="$(pwd)/config" \
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n \
             -DCONFIG_BT_CTLR_TX_PWR_PLUS_8=y
           
-          # Копируем собранную прошивку в корень рабочего пространства
-          cp app/build/zephyr/zmk.uf2 /__w/zmk-config-lily58/zmk-config-lily58/lily58_left.uf2
+          # Копируем прошивку
+          cp build/zephyr/zmk.uf2 lily58_left.uf2
+          echo "✓ lily58_left.uf2 создан"
 
-      - name: Build firmware for Right Half (Peripheral)
+      - name: Build Right Half (Peripheral)
         run: |
-          cd zmk
+          APP_PATH="${{ steps.find_app.outputs.APP_PATH }}"
           
-          # Собираем прошивку для правой половины (периферийное устройство)
-          west build -s app -b nice_nano_v2 -- \
+          echo "Сборка правой половины"
+          west build -s "$APP_PATH" -b nice_nano_v2 -- \
             -DSHIELD=lily58_right \
-            -DZMK_CONFIG="/__w/zmk-config-lily58/zmk-config-lily58/config" \
+            -DZMK_CONFIG="$(pwd)/config" \
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n \
             -DCONFIG_BT_CTLR_TX_PWR_PLUS_8=y
           
-          cp app/build/zephyr/zmk.uf2 /__w/zmk-config-lily58/zmk-config-lily58/lily58_right.uf2
+          cp build/zephyr/zmk.uf2 lily58_right.uf2
+          echo "✓ lily58_right.uf2 создан"
 
-      - name: Build firmware for Dongle (Central)
+      - name: Build Dongle (Central)
         run: |
-          cd zmk
+          APP_PATH="${{ steps.find_app.outputs.APP_PATH }}"
           
-          # Собираем прошивку для донгла (центральное устройство)
-          west build -s app -b nice_nano_v2 -- \
+          echo "Сборка донгла"
+          west build -s "$APP_PATH" -b nice_nano_v2 -- \
             -DSHIELD=lily58 \
-            -DZMK_CONFIG="/__w/zmk-config-lily58/zmk-config-lily58/config" \
+            -DZMK_CONFIG="$(pwd)/config" \
             -DCONFIG_ZMK_SPLIT=y \
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
             -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2 \
@@ -82,20 +114,33 @@ jobs:
             -DCONFIG_BT_MAX_PAIRED=3 \
             -DCONFIG_BT_CTLR_TX_PWR_PLUS_8=y
           
-          cp app/build/zephyr/zmk.uf2 /__w/zmk-config-lily58/zmk-config-lily58/lily58_central.uf2
+          cp build/zephyr/zmk.uf2 lily58_central.uf2
+          echo "✓ lily58_central.uf2 создан"
 
-      - name: Verify and list firmware files
+      - name: Verify firmware files
         run: |
-          echo "=== Проверка собранных прошивок ==="
+          echo "=== Проверка файлов прошивок ==="
           ls -la *.uf2
           echo ""
-          echo "=== Размеры файлов ==="
+          echo "=== Размеры ==="
           for f in *.uf2; do
-            size=$(stat -c%s "$f")
-            echo "$f: $size bytes ($((size/1024)) KB)"
+            if [ -f "$f" ]; then
+              size=$(stat -c%s "$f")
+              echo "$f: $size bytes ($((size/1024)) KB)"
+            else
+              echo "$f: НЕ НАЙДЕН"
+            fi
           done
+          
+          # Проверяем, что все три файла существуют
+          if [ -f "lily58_left.uf2" ] && [ -f "lily58_right.uf2" ] && [ -f "lily58_central.uf2" ]; then
+            echo "✅ Все три прошивки успешно собраны"
+          else
+            echo "❌ Не все прошивки собраны"
+            exit 1
+          fi
 
-      - name: Upload firmware as artifacts
+      - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: lily58-firmware-${{ github.run_number }}
@@ -103,4 +148,4 @@ jobs:
             lily58_left.uf2
             lily58_right.uf2
             lily58_central.uf2
-          retention-days: 90  # Хранить артефакты 90 дней
+          retention-days: 90
