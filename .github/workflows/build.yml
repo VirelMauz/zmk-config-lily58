@@ -5,8 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Добавлено для создания автоматического релиза
+    container: zmkfirmware/zmk-build-arm:stable  # Используем официальный Docker-образ ZMK
     
     steps:
       - name: Checkout repository
@@ -47,18 +46,7 @@ jobs:
             -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
           mv app/build/zephyr/zmk.uf2 lily58_central.uf2
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            lily58_left.uf2
-            lily58_right.uf2
-            lily58_central.uf2
-          generate_release_notes: true
-
       - name: Upload Artifacts
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ github.run_id }}
