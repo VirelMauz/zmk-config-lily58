@@ -1,28 +1,61 @@
-include:
-  - board: nice_nano_v2
-    shield: lily58_left
-    keymap: lily58
-    file_name: lily58_left
-    settings:
-      - DZMK_CONFIG="config"
-      - DCONFIG_ZMK_SPLIT=y
-      - DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+name: Build ZMK Firmware
 
-  - board: nice_nano_v2
-    shield: lily58_right
-    keymap: lily58
-    file_name: lily58_right
-    settings:
-      - DZMK_CONFIG="config"
-      - DCONFIG_ZMK_SPLIT=y
-      - DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
 
-  - board: nice_nano_v2
-    shield: lily58
-    keymap: lily58
-    file_name: lily58_central
-    settings:
-      - DZMK_CONFIG="config"
-      - DCONFIG_ZMK_SPLIT=y
-      - DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
-      - DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: zmkfirmware/zmk-build-arm:stable
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup ZMK
+        run: |
+          rm -rf .west
+          west init -l .
+          west update
+          west zephyr-export
+
+      - name: Build all firmwares
+        run: |
+          # Левая половина
+          west build -b nice_nano_v2 -- \
+            -DSHIELD=lily58_left \
+            -DZMK_CONFIG="$(pwd)/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+          cp build/zephyr/zmk.uf2 lily58_left.uf2
+
+          # Правая половина
+          west build -b nice_nano_v2 -- \
+            -DSHIELD=lily58_right \
+            -DZMK_CONFIG="$(pwd)/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+          cp build/zephyr/zmk.uf2 lily58_right.uf2
+
+          # Донгл
+          west build -b nice_nano_v2 -- \
+            -DSHIELD=lily58 \
+            -DZMK_CONFIG="$(pwd)/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y \
+            -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2
+          cp build/zephyr/zmk.uf2 lily58_central.uf2
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            lily58_left.uf2
+            lily58_right.uf2
+            lily58_central.uf2
+          retention-days: 90
