@@ -1,28 +1,24 @@
-# This file generates the GitHub Actions matrix.
-# For simple board + shield combinations, add them to the top level board and
-# shield arrays, for more control, add individual board + shield combinations
-# to the `include` property. You can also use the `cmake-args` property to
-# pass flags to the build command and `artifact-name` to assign a name to
-# distinguish build outputs from each other:
-#
-# board: [ "nice_nano_v2" ]
-# shield: [ "corne_left", "corne_right" ]
-# include:
-#   - board: bdn9_rev2
-#   - board: nice_nano_v2
-#     shield: reviung41
-#   - board: nice_nano_v2
-#     shield: corne_left
-#     cmake-args: -DCONFIG_ZMK_USB_LOGGING=y
-#     artifact-name: corne_left_with_logging
-#
----
 include:
+  # 1. ПРОШИВКА ДЛЯ ДОНГЛА
   - board: nice_nano_v2
     shield: lily58_left
     snippet: studio-rpc-usb-uart
-    cmake-args: -DCONFIG_ZMK_STUDIO=y
+    # Добавляем флаги прямо в билд, чтобы не создавать файлы .conf
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS=2
+    artifact-name: lily58_dongle
+
+  # 2. ПРОШИВКА ДЛЯ ЛЕВОЙ ПОЛОВИНЫ
+  - board: nice_nano_v2
+    shield: lily58_left
+    # Отключаем роль центрального устройства, чтобы она стала периферией
+    cmake-args: -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+    artifact-name: lily58_left
+
+  # 3. ПРОШИВКА ДЛЯ ПРАВОЙ ПОЛОВИНЫ
   - board: nice_nano_v2
     shield: lily58_right
+    artifact-name: lily58_right
+
+  # 4. СБРОС (на случай проблем с коннектом)
   - board: nice_nano_v2
     shield: settings_reset
