@@ -5,34 +5,63 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Добавлено для создания автоматического релиза
+    
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Initialize ZMK
+      - name: Setup ZMK
         run: |
           west init -l .
           west update
           west zephyr-export
 
-      - name: Build Firmware
+      - name: Build Left Half (Peripheral)
         run: |
-          west build -s app -b nice_nano_v2 -- -DSHIELD=lily58_left -DZMK_CONFIG="$(pwd)/config"
-          cp app/build/zephyr/zmk.uf2 lily58_left.uf2
-          
-          west build -s app -b nice_nano_v2 -- -DSHIELD=lily58_right -DZMK_CONFIG="$(pwd)/config"
-          cp app/build/zephyr/zmk.uf2 lily58_right.uf2
-          
-          west build -s app -b nice_nano_v2 -- -DSHIELD=lily58 -DZMK_CONFIG="$(pwd)/config" -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
-          cp app/build/zephyr/zmk.uf2 lily58_central.uf2
+          west build -s app -b nice_nano_v2 -- \
+            -DSHIELD=lily58_left \
+            -DZMK_CONFIG="$(pwd)/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+          mv app/build/zephyr/zmk.uf2 lily58_left.uf2
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: Build Right Half (Peripheral)
+        run: |
+          west build -s app -b nice_nano_v2 -- \
+            -DSHIELD=lily58_right \
+            -DZMK_CONFIG="$(pwd)/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
+          mv app/build/zephyr/zmk.uf2 lily58_right.uf2
+
+      - name: Build Dongle (Central)
+        run: |
+          west build -s app -b nice_nano_v2 -- \
+            -DSHIELD=lily58 \
+            -DZMK_CONFIG="$(pwd)/config" \
+            -DCONFIG_ZMK_SPLIT=y \
+            -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+          mv app/build/zephyr/zmk.uf2 lily58_central.uf2
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: firmware
-          path: |
+          files: |
             lily58_left.uf2
             lily58_right.uf2
             lily58_central.uf2
+          generate_release_notes: true
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.run_id }}
+          path: |
+            lily58_*.uf2
+          retention-days: 30
