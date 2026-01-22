@@ -12,21 +12,19 @@
         rows = <0>;
         events = <0>;
         status = "okay";
-        label = "MOCK_KSCAN";
     };
 
-    /* ОФИЦИАЛЬНАЯ матрица Lily58 из ZMK репозитория */
+    /* Official Lily58 matrix transform from ZMK repo */
     default_transform: keymap_transform_0 {
         compatible = "zmk,matrix-transform";
         columns = <7>;
         rows = <4>;
-        label = "DEFAULT_TRANSFORM";
 
         map = <
-            MATRIX_TRANSFORM_ROW(0,  0,  1,  2,  3,  4,  5,  6)
-            MATRIX_TRANSFORM_ROW(1,  7,  8,  9, 10, 11, 12, 13)
-            MATRIX_TRANSFORM_ROW(2, 14, 15, 16, 17, 18, 19, 20)
-            MATRIX_TRANSFORM_ROW(3, 21, 22, 23, 24, 25, 26, 27)
+            RC(0,0) RC(0,1) RC(0,2) RC(0,3) RC(0,4) RC(0,5) RC(0,6)
+            RC(1,0) RC(1,1) RC(1,2) RC(1,3) RC(1,4) RC(1,5) RC(1,6)
+            RC(2,0) RC(2,1) RC(2,2) RC(2,3) RC(2,4) RC(2,5) RC(2,6)
+            RC(3,0) RC(3,1) RC(3,2) RC(3,3) RC(3,4) RC(3,5) RC(3,6)
         >;
     };
 
@@ -34,7 +32,5 @@
         compatible = "zmk,physical-layout";
         display-name = "Lily58 Default";
         transform = <&default_transform>;
-        status = "okay";
-        label = "PHYSICAL_LAYOUT0";
     };
 };
