@@ -18,19 +18,27 @@
 #
 ---
 include:
-  # Left half as PERIPHERAL device (was central)
+  # Left half - теперь периферийное устройство (отключаем USB)
   - board: nice_nano
     shield: lily58_left
     snippet: studio-rpc-usb-uart
     cmake-args: |
       -DCONFIG_ZMK_STUDIO=y
-      -DCONFIG_ZMK_SPLIT_ROLE_PERIPHERAL=y
+      -DCONFIG_ZMK_USB=n
+      -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n
   
-  # Right half as PERIPHERAL device (already peripheral by default)
+  # Right half - уже периферийное по умолчанию (ничего не меняем)
   - board: nice_nano
     shield: lily58_right
-    cmake-args: -DCONFIG_ZMK_SPLIT_ROLE_PERIPHERAL=y
-
-  # Dongle as NEW CENTRAL device
+    # НИКАКИХ cmake-args здесь не нужно!
+  
+  # Dongle - центральное устройство с USB
   - board: nice_nano
     shield: lily58_dongle
+    cmake-args: |
+      -DCONFIG_ZMK_USB=y
+      -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y
+  
+  # Settings reset
+  - board: nice_nano
+    shield: settings_reset
