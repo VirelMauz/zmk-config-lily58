@@ -1,0 +1,10 @@
+menu "Lily58 Dongle Configuration"
+    depends on SHIELD_LILY58_DONGLE
+
+    config LILY58_DONGLE
+        bool "Enable Lily58 Dongle"
+        default y
+        help
+            Enable Lily58 Dongle configuration
+
+endmenu

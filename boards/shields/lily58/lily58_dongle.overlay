@@ -1,0 +1,40 @@
+#include <dt-bindings/zmk/matrix_transform.h>
+
+/ {
+    chosen {
+        zmk,kscan = &mock_kscan;
+        zmk,physical-layout = &physical_layout0;
+    };
+
+    mock_kscan: mock_kscan_0 {
+        compatible = "zmk,kscan-mock";
+        columns = <0>;
+        rows = <0>;
+        events = <0>;
+        status = "okay";
+        label = "MOCK_KSCAN";
+    };
+
+    /* ОФИЦИАЛЬНАЯ матрица Lily58 из ZMK репозитория */
+    default_transform: keymap_transform_0 {
+        compatible = "zmk,matrix-transform";
+        columns = <7>;
+        rows = <4>;
+        label = "DEFAULT_TRANSFORM";
+
+        map = <
+            MATRIX_TRANSFORM_ROW(0,  0,  1,  2,  3,  4,  5,  6)
+            MATRIX_TRANSFORM_ROW(1,  7,  8,  9, 10, 11, 12, 13)
+            MATRIX_TRANSFORM_ROW(2, 14, 15, 16, 17, 18, 19, 20)
+            MATRIX_TRANSFORM_ROW(3, 21, 22, 23, 24, 25, 26, 27)
+        >;
+    };
+
+    physical_layout0: physical_layout_0 {
+        compatible = "zmk,physical-layout";
+        display-name = "Lily58 Default";
+        transform = <&default_transform>;
+        status = "okay";
+        label = "PHYSICAL_LAYOUT0";
+    };
+};
