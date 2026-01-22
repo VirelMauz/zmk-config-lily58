@@ -71,8 +71,6 @@
 &kp LEFT_CONTROL  &kp Z   &kp X   &kp C     &kp V      &kp B   &kp LEFT_GUI    &kp A    &kp N   &hrm RIGHT_BRACKET M  &kp COMMA  &kp DOT  &kp FSLH  &kp RSHFT
                                   &kp LALT  &kp LSHFT  &mo 1   &kp SPACE       &kp RET  &mo 2   &kp BSPC              &kp DEL
             >;
-
-            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;
         };
 
         lower_layer {
